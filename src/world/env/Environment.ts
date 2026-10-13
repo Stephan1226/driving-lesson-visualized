@@ -130,6 +130,7 @@ export class ParkEnv {
     for (const [x, z, h, color] of others) {
       const car = new Car({ color, plate: `${10 + Math.floor(r() * 89)}${'가나다라마'[Math.floor(r() * 5)]} ${1000 + Math.floor(r() * 8999)}` });
       car.setPose(x, z, h);
+      car.setMirrorFold(1);
       g.add(car.root);
       this.neighbors.push(car);
     }
@@ -355,6 +356,7 @@ export class GarageEnv {
     // 주변 차량
     this.neighbor = new Car({ color: 0xeceff2, doorRight: true, plate: '34나 5678' });
     this.neighbor.setPose(0, -2.35, 0);
+    this.neighbor.setMirrorFold(1);
     g.add(this.neighbor.root);
     const others: [number, number, number, number][] = [
       [0, -5, 0, 0x30343b], [0, 3.5, 0, 0x7b8794], [0, 8.5, 0, 0xb3392d], [0, -8.5, 0, 0xdedad0],
@@ -363,6 +365,7 @@ export class GarageEnv {
     for (const [x, z, h, color] of others) {
       const car = new Car({ color });
       car.setPose(x, z, h);
+      car.setMirrorFold(1);
       g.add(car.root);
       this.neighbors.push(car);
     }

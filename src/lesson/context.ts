@@ -129,6 +129,7 @@ export function resetWorld(ctx: Ctx) {
   placeCoin(fl, 0);
   car.mirrors.forEach((m) => m.pivot.rotation.set(0, 0, 0));
   ctx.garage.neighbor.setDoor(0);
+  car.setMirrorFold(0);
 
   Object.assign(c, {
     steer: 0, tilt: 0, tele: 0, tiltLever: 0, lStalkV: 0, lStalkPush: 0, lightDial: 0, rStalkV: 0, rStalkPull: 0,
