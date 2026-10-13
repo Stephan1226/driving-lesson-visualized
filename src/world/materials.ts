@@ -49,6 +49,11 @@ export const MAT = {
     opacity: 0.72,
     envMapIntensity: 1.6,
   }),
+  gloss: new THREE.MeshPhysicalMaterial({ color: 0x0b0d10, roughness: 0.22, metalness: 0.1, clearcoat: 1, clearcoatRoughness: 0.08 }),
+  lampHousing: new THREE.MeshPhysicalMaterial({ color: 0x15181d, roughness: 0.15, metalness: 0.6, clearcoat: 1, clearcoatRoughness: 0.05 }),
+  tailHousing: new THREE.MeshPhysicalMaterial({ color: 0x2a0606, roughness: 0.15, metalness: 0.3, clearcoat: 1, clearcoatRoughness: 0.05 }),
+  wellLiner: new THREE.MeshStandardMaterial({ color: 0x141518, roughness: 0.95, side: THREE.DoubleSide }),
+  bayFloor: new THREE.MeshStandardMaterial({ color: 0x1d2024, roughness: 0.8 }),
   windshieldInner: new THREE.MeshBasicMaterial({ color: 0x9fc4e8, transparent: true, opacity: 0.06, depthWrite: false }),
   ghost: new THREE.MeshStandardMaterial({
     color: 0x9cc6ff,
