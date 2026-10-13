@@ -12,7 +12,7 @@ export type Seg =
   | { type: 'line'; d: number }
   | { type: 'arc'; r: number; dir: 1 | -1; a: number }
   /** 완화 곡선: 길이 len 동안 곡률을 0 → 1/r 로 서서히 (핸들을 감는 구간) */
-  | { type: 'spiral'; len: number; r: number; dir: 1 | -1 };
+  | { type: 'spiral'; len: number; r: number; dir: 1 | -1; out?: boolean };
 
 /** 완화 곡선 구간에서 회전하는 각도 */
 export const spiralAngle = (len: number, r: number) => len / (2 * r);
@@ -56,16 +56,19 @@ export class DrivePath {
     if (seg.type === 'spiral') {
       const N = 24;
       const du = s / N;
+      // 곡률 κ(u): 감기(in) 0 → 1/r, 풀기(out) 1/r → 0
       const k = seg.dir / (seg.len * seg.r);
+      const head = (u: number) => (seg.out ? (seg.dir * u) / seg.r - (k * u * u) / 2 : (k * u * u) / 2);
       let x = rx;
       let z = rz;
       for (let i = 0; i < N; i++) {
         const u = (i + 0.5) * du;
-        const [fx, fz] = fwd(h + (k * u * u) / 2);
+        const [fx, fz] = fwd(h + head(u));
         x += fx * du;
         z += fz * du;
       }
-      return { rx: x, rz: z, h: h + (k * s * s) / 2, steer: Math.atan(WHEELBASE * k * s) };
+      const curv = seg.out ? seg.dir / seg.r - k * s : k * s;
+      return { rx: x, rz: z, h: h + head(s), steer: Math.atan(WHEELBASE * curv) };
     }
     const [lx, lz] = left(h);
     const cx = rx + lx * seg.r * seg.dir;
@@ -136,7 +139,43 @@ export function overlap(a: Box2, b: Box2) {
   return true;
 }
 
+/** 차량 로컬 좌표의 충돌 부위 (중심 x, z와 반길이) */
+export interface Part {
+  name: string;
+  x: number;
+  z: number;
+  hx: number;
+  hz: number;
+}
+export const BODY_PART: Part = { name: 'body', x: 0, z: 0, hx: 2.37, hz: 0.93 };
+
 export const carBox = (p: Pose): Box2 => ({ cx: p.x, cz: p.z, hx: 2.37, hz: 0.93, h: p.h });
+
+/** 포즈에서 각 부위의 월드 박스 */
+export function partBox(p: Pose, part: Part): Box2 {
+  const c = Math.cos(p.h);
+  const sn = Math.sin(p.h);
+  return { cx: p.x + part.x * c + part.z * sn, cz: p.z - part.x * sn + part.z * c, hx: part.hx, hz: part.hz, h: p.h };
+}
+
+export interface Hit {
+  s: number;
+  part: string;
+  obstacle: number;
+}
+
+/** 경로를 따라가며 어느 부위든 처음 장애물에 닿는 지점. 없으면 null */
+export function firstHitParts(path: DrivePath, obstacles: Box2[], parts: Part[], step = 0.01): Hit | null {
+  for (let s = 0; s <= path.length; s += step) {
+    const pose = path.sample(s);
+    for (const part of parts) {
+      const b = partBox(pose, part);
+      const i = obstacles.findIndex((o) => overlap(b, o));
+      if (i >= 0) return { s, part: part.name, obstacle: i };
+    }
+  }
+  return null;
+}
 
 /** 경로를 따라가며 처음 충돌하는 거리(s). 없으면 null */
 export function firstHit(path: DrivePath, obstacle: Box2, step = 0.01): number | null {

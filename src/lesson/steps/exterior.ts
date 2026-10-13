@@ -26,6 +26,7 @@ export const exteriorSteps: Step[] = [
     duration: 12,
     cam: orbit([0, 0.4, 0], 9.6, 4.3, -2.25, -0.55, 12, 42),
     enter(ctx) {
+      ctx.car.setMirrorFold(1);
       ctx.fx.walker.root.visible = true;
       ctx.labels.add('walker', () => ctx.fx.walker.root.position.clone().add(V(0, 1.85, 0)), { text: '한 바퀴 점검', kind: 'info', len: 24 });
       ctx.labels.add('front', ctx.car.anchors.headL, { text: '앞', sub: '전조등·앞유리·번호판', dir: 'up', visible: false });
@@ -67,6 +68,7 @@ export const exteriorSteps: Step[] = [
       <div class="note">얼룩이 보이면 사진을 찍어 정비소에 보여주면 원인을 찾기 쉬워요.</div>`,
     cam: [S(0, [5.6, 1.5, -4.3], [1.6, 0.2, 0], 40), S(4, [3.7, 0.55, -2.7], [1.55, 0.05, 0.1], 38), S(14, [3.3, 0.45, -2.25], [1.55, 0.05, 0.15], 36)],
     enter(ctx) {
+      ctx.car.setMirrorFold(1);
       const { fx } = ctx;
       fx.puddle.visible = true;
       fx.puddle.position.set(1.55, 0.015, 0.12);
@@ -124,6 +126,7 @@ export const exteriorSteps: Step[] = [
       return { pos, look, fov: lerp(40, 34, k2), up };
     },
     enter(ctx) {
+      ctx.car.setMirrorFold(1);
       ctx.car.setSteer(0.36);
       const w = ctx.car.wheels[0];
       ctx.labels.add('coin', () => w.coin!.getWorldPosition(V(0, 0, 0)).add(V(0, 0.016, 0)), { text: '', dir: 'right', len: 50, visible: false });
@@ -173,6 +176,7 @@ export const exteriorSteps: Step[] = [
       <div class="row" data-k="sticker"><span class="key">스티커</span><span>운전석 문을 열면 보이는 기둥(B필러)에 <b>적정 공기압</b>이 적혀 있어요</span></div>`,
     cam: [S(0, [0.6, 1.1, -4.9], [-0.3, 0.35, -0.8], 40), S(4, [-0.85, 0.55, -2.75], [-1.37, 0.3, -0.8], 36), S(13, [-0.75, 0.5, -2.5], [-1.37, 0.28, -0.8], 34)],
     enter(ctx) {
+      ctx.car.setMirrorFold(1);
       ctx.labels.add('rl', ctx.car.wheels[2].anchors.tire, { text: '', len: 40, visible: false });
     },
     update(ctx, t) {
@@ -221,6 +225,7 @@ export const exteriorSteps: Step[] = [
       </svg>`,
     cam: [S(0, [3.1, 0.95, -2.9], [1.38, 0.4, -0.85], 38), S(3, [1.78, 0.56, -1.78], [1.3, 0.42, -0.84], 32), S(15, [1.62, 0.6, -1.58], [1.25, 0.44, -0.83], 30)],
     enter(ctx) {
+      ctx.car.setMirrorFold(1);
       const w = ctx.car.wheels[0];
       ctx.labels.add('disc', w.anchors.disc, { text: '브레이크 디스크', dir: 'down', len: 40, visible: false });
       ctx.labels.add('caliper', () => w.anchors.pad.getWorldPosition(V(0, 0, 0)).add(V(-0.02, 0.04, 0)), { text: '캘리퍼', kind: 'info', len: 30, visible: false });
@@ -287,6 +292,7 @@ export const exteriorSteps: Step[] = [
       S(15.5, [3.6, 2.05, -1.3], [1.65, 0.85, 0], 44),
     ],
     enter(ctx) {
+      ctx.car.setMirrorFold(1);
       const a = ctx.car.anchors;
       ctx.labels.add('dip', a.dipstick, { text: '엔진오일 게이지', kind: 'amber', len: 34, visible: false });
       ctx.labels.add('cap', a.oilCap, { text: '오일 주입구', len: 30, dir: 'right', visible: false });
@@ -330,6 +336,7 @@ export const exteriorSteps: Step[] = [
       S(15, [-6.2, 1.8, 2.6], [-1.8, 0.8, 0], 40),
     ],
     enter(ctx) {
+      ctx.car.setMirrorFold(1);
       const a = ctx.car.anchors;
       ctx.labels.add('head', a.headL, { text: '전조등', len: 34, visible: false });
       ctx.labels.add('turn', a.turnFL, { text: '방향지시등', kind: 'amber', dir: 'down', len: 34, visible: false });
