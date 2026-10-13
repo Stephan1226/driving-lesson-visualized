@@ -1,0 +1,21 @@
+{
+  "name": "driving-lesson-visualized",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "운전 첫걸음 — 처음 운전하는 사람을 위한 3D 애니메이션 강의",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "@types/three": "^0.186.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.4"
+  }
+}
