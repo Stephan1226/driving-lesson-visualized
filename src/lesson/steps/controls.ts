@@ -294,7 +294,7 @@ export const controlSteps: Step[] = [
       ctx.car.lights.hazard = t > 1.8 && t < 11.8;
       setBlink(ctx, prev, t, 1.8);
       if (crossed(prev, t, 1.8) || crossed(prev, t, 11.8)) ctx.sfx.click();
-      ctx.ghost.R = handTimeline(wheelHand(ctx, 'R'), grab(ctx, 'hazard', [1, -0.1, 0.05], [0, 1, 0], 'point'), t, 0.4, 1.6, 2.4, 3.4);
+      ctx.ghost.R = handTimeline(wheelHand(ctx, 'R'), grab(ctx, 'hazard', [0.82, -0.22, 0.52], [0.2, 0.95, -0.2], 'point'), t, 0.4, 1.6, 2.4, 3.4);
       ctx.ghost.L = wheelHand(ctx, 'L');
       ctx.labels.show('btn', t > 1 && t < 4);
       ctx.labels.show('rl', t > 7.2);

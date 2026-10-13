@@ -204,6 +204,9 @@ export class Cockpit {
   private buckle = new THREE.Group();
   private interiorLight: THREE.PointLight;
   private prndKey = '';
+  private foldBtnG = new THREE.Group();
+  /** 미러 접기 버튼 누름 (0..1) */
+  foldBtn = 0;
   /** 투시 모드에서 숨기는 운전석 쪽 내장재 */
   private leftTrim: THREE.Object3D[] = [];
 
@@ -233,17 +236,23 @@ export class Cockpit {
     }
 
     // 계기판
-    const binnacle = rbox(0.2, 0.1, 0.44, 0.04, MAT.dash);
-    binnacle.position.set(0.64, 0.995, DZ);
-    const hoodTop = rbox(0.22, 0.03, 0.46, 0.015, MAT.dashSoft);
-    hoodTop.position.set(0.62, 1.05, DZ);
-    hoodTop.rotation.z = 0.08;
+    // 계기판은 대시보드 앞면보다 운전자 쪽에 두고, 위쪽만 차양으로 덮는다
+    const binnacle = rbox(0.06, 0.17, 0.43, 0.02, MAT.black);
+    binnacle.position.set(0.555, 0.945, DZ);
+    const hoodTop = rbox(0.17, 0.028, 0.45, 0.012, MAT.dashSoft);
+    hoodTop.position.set(0.56, 1.045, DZ);
+    hoodTop.rotation.z = 0.1;
+    for (const s of [-1, 1]) {
+      const cheek = rbox(0.12, 0.13, 0.025, 0.01, MAT.dash);
+      cheek.position.set(0.55, 0.965, DZ + s * 0.215);
+      R.add(cheek);
+    }
     const clusterMesh = new THREE.Mesh(
       new THREE.PlaneGeometry(0.36, 0.135),
       new THREE.MeshBasicMaterial({ map: this.cluster.texture, toneMapped: false }),
     );
-    clusterMesh.position.set(0.548, 0.982, DZ);
-    orient(clusterMesh, new THREE.Vector3(-1, 0.22, 0), new THREE.Vector3(0, 1, 0));
+    clusterMesh.position.set(0.502, 0.945, DZ);
+    orient(clusterMesh, new THREE.Vector3(-1, 0.1, 0), new THREE.Vector3(0, 1, 0));
     // PlaneGeometry의 법선은 +Z → orient로 운전자 방향을 바라보게
     R.add(binnacle, hoodTop, clusterMesh);
     this.mk('cluster', clusterMesh, 0, 0, 0.005);
@@ -284,7 +293,7 @@ export class Cockpit {
     R.add(fascia, screen, screenFace);
     for (const z of [-0.09, 0.09]) {
       const vent = rbox(0.02, 0.05, 0.1, 0.01, MAT.black);
-      vent.position.set(0.618, 0.8, z);
+      vent.position.set(0.535, 0.82, z);
       R.add(vent);
     }
 
@@ -305,7 +314,7 @@ export class Cockpit {
     tri.rotation.y = -Math.PI / 2;
     tri.position.x = -0.0105;
     this.hazardG.add(hzBtn, tri);
-    this.hazardG.position.set(0.616, 0.885, 0);
+    this.hazardG.position.set(0.53, 0.885, 0);
     R.add(this.hazardG);
     this.mk('hazard', this.hazardG, -0.02, 0.0, 0);
 
@@ -323,7 +332,7 @@ export class Cockpit {
     ring.rotation.y = Math.PI / 2;
     ring.position.x = -0.009;
     this.startG.add(sb, sbFace, ring);
-    this.startG.position.set(0.556, 0.84, -0.13);
+    this.startG.position.set(0.531, 0.84, -0.13);
     R.add(this.startG);
     this.mk('start', this.startG, -0.02, 0, 0);
 
@@ -555,12 +564,12 @@ export class Cockpit {
     this.mk('handbrake', this.handbrakeG, -0.24, 0.03, 0);
 
     // ── 문 패널·필러·천장 ─────────────────────────────────
-    const door = rbox(1.32, 0.68, 0.07, 0.03, MAT.dash);
-    door.position.set(0.28, 0.66, 0);
+    const door = rbox(1.32, 0.64, 0.07, 0.03, MAT.dash);
+    door.position.set(0.28, 0.64, 0.01);
     const doorArm = rbox(0.42, 0.05, 0.08, 0.02, MAT.leather);
     doorArm.position.set(0.12, 0.71, 0.05);
     const doorTop = rbox(1.3, 0.04, 0.09, 0.02, MAT.dashSoft);
-    doorTop.position.set(0.28, 1.0, 0.01);
+    doorTop.position.set(0.28, 0.955, 0.03);
     this.doorL.add(door, doorArm, doorTop);
     this.doorL.position.z = -0.83;
     // 사이드미러 스위치
@@ -586,8 +595,20 @@ export class Cockpit {
       ws.position.set(0.2 - i * 0.04, 0.742, 0.05);
       this.doorL.add(ws);
     }
+    // 사이드미러 접기 버튼
+    this.foldBtnG.position.set(0.37, 0.745, 0.05);
+    const fb = rbox(0.024, 0.012, 0.024, 0.006, MAT.black);
+    const fbIcon = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.02, 0.02),
+      new THREE.MeshBasicMaterial({ map: foldIconTexture(), transparent: true }),
+    );
+    fbIcon.rotation.set(-Math.PI / 2, 0, 0);
+    fbIcon.position.y = 0.0065;
+    this.foldBtnG.add(fb, fbIcon);
+    this.doorL.add(this.foldBtnG);
     R.add(this.doorL);
     this.mk('mirrorSwitch', this.mirrorPadG, 0, 0.012, 0);
+    this.mk('foldBtn', this.foldBtnG, 0, 0.008, 0);
     const doorR = this.doorL.clone();
     doorR.position.z = 0.83;
     doorR.scale.z = -1;
@@ -597,17 +618,19 @@ export class Cockpit {
       rd.position.set(-0.86, 0.63, s * 0.83);
       R.add(rd);
       if (s < 0) this.leftTrim.push(rd);
-      const a = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 1, 12), MAT.liner);
-      placeBetween(a, new THREE.Vector3(1.08, 0.99, s * 0.7), new THREE.Vector3(0.3, 1.41, s * 0.66));
-      const b = rbox(0.11, 0.5, 0.05, 0.02, MAT.liner);
-      b.position.set(-0.4, 1.17, s * 0.77);
-      const c = new THREE.Mesh(new THREE.BoxGeometry(0.16, 1, 0.06), MAT.liner);
-      placeBetween(c, new THREE.Vector3(-1.62, 1.0, s * 0.71), new THREE.Vector3(-1.05, 1.4, s * 0.69));
+      // 필러 내장재 — 캐빈 유리가 위로 갈수록 안쪽으로 기울어진 것에 맞춤
+      const a = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 1, 12), MAT.liner);
+      placeBetween(a, new THREE.Vector3(1.06, 0.99, s * 0.79), new THREE.Vector3(0.33, 1.37, s * 0.61));
+      const b = rbox(0.11, 0.46, 0.045, 0.02, MAT.liner);
+      b.position.set(-0.4, 1.17, s * 0.755);
+      b.rotation.x = -s * 0.29;
+      const c = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1, 0.05), MAT.liner);
+      placeBetween(c, new THREE.Vector3(-1.6, 1.0, s * 0.79), new THREE.Vector3(-1.07, 1.36, s * 0.63));
       R.add(a, b, c);
       if (s < 0) this.leftTrim.push(a, b, c);
     }
-    const liner = new THREE.Mesh(new THREE.BoxGeometry(1.44, 0.02, 1.46), MAT.liner);
-    liner.position.set(-0.36, 1.415, 0);
+    const liner = new THREE.Mesh(new THREE.BoxGeometry(1.26, 0.02, 1.24), MAT.liner);
+    liner.position.set(-0.35, 1.395, 0);
     const shelf = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.02, 1.4), MAT.trim);
     shelf.position.set(-1.55, 0.985, 0);
     const rseat = rbox(0.5, 0.14, 1.36, 0.05, MAT.seat);
@@ -733,10 +756,10 @@ export class Cockpit {
     this.handbrakeG.rotation.z = -lerp(0.05, 0.42, this.handbrake);
     this.handbrakeBtnMesh.position.x = -0.305 + this.handbrakeBtn * 0.008;
 
-    this.startG.position.x = 0.556 + this.startBtn * 0.006;
+    this.startG.position.x = 0.531 + this.startBtn * 0.006;
     const glow = { off: 0x2a2f38, acc: 0xffa53a, on: 0xff7a2a, run: 0x4b9bff }[this.startGlow];
     this.startRing.color.set(glow);
-    this.hazardG.position.x = 0.616 + this.hazardBtn * 0.006;
+    this.hazardG.position.x = 0.53 + this.hazardBtn * 0.006;
     this.hazardMat.emissiveIntensity = this.hazardLit && blinkOn(time) ? 2.5 : 0.1;
 
     this.brakePedal.rotation.z = this.brake * 0.28;
@@ -745,6 +768,7 @@ export class Cockpit {
     this.mirrorKnob.rotation.y = this.mirrorSel === 'L' ? 0.6 : this.mirrorSel === 'R' ? -0.6 : 0;
     this.mirrorPadG.rotation.set(this.mirrorPad.x * 0.25, 0, -this.mirrorPad.y * 0.25);
     this.roomMirrorPivot.rotation.set(0, this.roomMirror.x, this.roomMirror.y, 'YXZ');
+    this.foldBtnG.position.y = 0.745 - this.foldBtn * 0.004;
     this.cluster.update(time);
     void dt;
   }
@@ -820,4 +844,23 @@ function placeBetween(m: THREE.Mesh, a: THREE.Vector3, b: THREE.Vector3) {
   m.position.copy(a).addScaledVector(d, 0.5);
   m.scale.y = d.length();
   m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize());
+}
+
+/** 사이드미러 접기 버튼 아이콘 */
+function foldIconTexture() {
+  return canvasTexture(64, 64, (c) => {
+    c.strokeStyle = '#ffffff';
+    c.fillStyle = '#ffffff';
+    c.lineWidth = 5;
+    c.beginPath();
+    c.moveTo(12, 44);
+    c.lineTo(34, 22);
+    c.lineTo(50, 30);
+    c.lineTo(32, 50);
+    c.closePath();
+    c.stroke();
+    c.beginPath();
+    c.arc(18, 22, 10, Math.PI * 1.1, Math.PI * 1.9);
+    c.stroke();
+  });
 }
