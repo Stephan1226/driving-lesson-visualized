@@ -83,17 +83,43 @@ function dashed(g: THREE.Group, x0: number, z0: number, x1: number, z1: number, 
     stripe(g, x0 + ux * s, z0 + uz * s, x0 + ux * e, z0 + uz * e, w, mat);
   }
 }
-/** 점선 곡선 (좌회전 유도선, 별표 6의 525: 도색·빈 길이 각 50~100cm) */
-function dashedCurve(g: THREE.Group, pts: THREE.Vector2[], on = 1, off = 1, w = 0.15) {
-  let acc = 0;
-  for (let i = 1; i < pts.length; i++) {
-    const a = pts[i - 1];
-    const b = pts[i];
-    const seg = a.distanceTo(b);
-    const phase = acc % (on + off);
-    if (phase < on) stripe(g, a.x, a.y, b.x, b.y, w);
-    acc += seg;
+/**
+ * 좌회전 유도선 (별표 6의 525: 흰 점선, 도색·빈 길이 각 50~100cm).
+ * 꺾은선을 길이를 따라 나눠, 양 끝이 도색으로 끝나도록 도색·빈 길이를 1m 안쪽으로 맞춘다.
+ */
+function guideLine(g: THREE.Group, pts: P[], w = 0.15) {
+  const cum = [0];
+  for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+  const len = cum[cum.length - 1];
+  const at = (s: number): P => {
+    let i = 1;
+    while (i < pts.length - 1 && cum[i] < s) i++;
+    const k = (s - cum[i - 1]) / (cum[i] - cum[i - 1] || 1);
+    return [pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * k, pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * k];
+  };
+  const n = Math.ceil((len + 1) / 2);
+  const u = len / (2 * n - 1);
+  for (let i = 0; i < n; i++) {
+    const [ax, az] = at(2 * i * u);
+    const [bx, bz] = at((2 * i + 1) * u);
+    stripe(g, ax, az, bx, bz, w);
   }
+}
+/**
+ * 좌회전 유도선 모양: (x0, 0)에서 ±X로 가운데선을 이어 가다 반경 r로 꺾여
+ * 들어갈 길의 가운데선(x = x1)을 따라 z1까지. 회전 차 경로의 안쪽(왼쪽)에 한 줄만 긋는다.
+ */
+function guidePts(x0: number, x1: number, r: number, z1: number): P[] {
+  const sx = Math.sign(x1 - x0);
+  const sz = Math.sign(z1);
+  const cx = x1 - sx * r;
+  const pts: P[] = [[x0, 0]];
+  for (let i = 0; i <= 24; i++) {
+    const a = (i / 24) * (Math.PI / 2);
+    pts.push([cx + sx * Math.sin(a) * r, sz * (1 - Math.cos(a)) * r]);
+  }
+  pts.push([x1, z1]);
+  return pts;
 }
 function zebra(g: THREE.Group, cx: number, cz: number, alongX: boolean, span: number, width = 4) {
   // 길을 가로지르는 줄무늬: alongX = 줄이 X방향으로 늘어섬(길이 Z방향인 도로를 건넘)
@@ -458,77 +484,103 @@ export class CityEnv {
     const { ix, mid, alley } = C;
     const X0 = -300;
     const X1 = 640;
-    const ixW = ix.x - ix.half - ix.fillet; // 교차로 경계(서)
-    const ixE = ix.x + ix.half + ix.fillet;
-    // 가운데선(노란 겹선): 유턴 구역·교차로·횡단보도 구간은 끊는다
+    /** 정지선 폭 (별표 6의 530: 30~60cm) */
+    const SL = 0.45;
+    const H = SL / 2;
+    /** 가장자리선 z (3차로 바깥 경계) */
+    const EDGE = 9.75;
+    /**
+     * 본 도로를 끊는 곳: 방향별 정지선 x (e: +X로 가는 쪽, w: −X로 가는 쪽).
+     * 모든 세로선(가운데선·차선·가장자리선)은 정지선에서 끝나고, 건너편은 맞은편 정지선 자리(횡단보도·모서리 곡선 너머)에서 다시 시작한다.
+     * 두 정지선 사이(교차로 안)는 비운다
+     */
+    const J = [
+      { e: alley.stopE, w: alley.stopW }, // 골목 T자 교차로
+      { e: mid.stopE, w: mid.stopW }, // 건물 진출입로 신호
+      { e: mid.stopCrossE, w: mid.stopCrossW }, // 횡단보도 신호
+      { e: ix.stopE, w: ix.stopW }, // 신호 교차로
+    ];
+    // 가운데선(노란 겹선): 정지선 끝에 붙여 끊는다
     const center = (a: number, b: number) => {
       for (const dz of [-0.12, 0.12]) stripe(g, a, dz, b, dz, 0.12, YELLOW);
     };
-    center(X0, alley.stopE);
-    center(alley.stopW, mid.stopE);
-    center(mid.stopE + 0.3, mid.cross - 2.2);
-    center(mid.cross + 2.2, ix.uturn.x0);
-    // 유턴구역선(별표 6의 502): 가운데선 자리에 흰 점선 (도색 3m · 빈 3m · 너비 0.3m)
-    dashed(g, ix.uturn.x0, 0, ix.uturn.x1, 0, 3, 3, 0.3);
-    center(ix.uturn.x1, ix.crossE - 2);
-    center(ix.crossW + 2, X1);
-    // 차선(흰 점선)·가장자리선, 교차로 앞 30m는 실선(차로 변경 금지)
-    for (const s of [-1, 1]) {
-      for (const lz of [3.35, 6.55]) {
-        const z = s * lz;
-        const runs: [number, number][] = [[X0, mid.cross - 2.2], [mid.cross + 2.2, ixW], [ixE, X1]];
-        for (const [a, b] of runs) {
-          if (s > 0 && b === ixW) {
-            dashed(g, a, z, ix.stopE - 30, z);
-            stripe(g, ix.stopE - 30, z, ix.crossE - 2, z);
-          } else if (s < 0 && a === ixE) {
-            stripe(g, ix.crossW + 2, z, ix.stopW + 30, z);
-            dashed(g, ix.stopW + 30, z, b, z);
-          } else dashed(g, a, z, b, z);
-        }
+    center(X0, alley.stopE + H);
+    center(alley.stopW - H, mid.stopE + H);
+    center(mid.stopW - H, mid.stopCrossE + H);
+    center(mid.stopCrossW - H, ix.uturn.x0);
+    // 유턴구역선(별표 6의 502): 가운데선 자리에 흰 네모 (도색·빈 길이 각 50cm, 너비 30~45cm)
+    dashed(g, ix.uturn.x0, 0, ix.uturn.x1, 0, 0.5, 0.5, 0.35);
+    center(ix.uturn.x1, ix.stopE + H);
+    center(ix.stopW - H, X1);
+    // 차선(별표 6의 503: 흰 점선 도색 3m · 빈 5m). 위상을 X0에 맞춰 모든 차선의 도색 구간이 나란하다
+    /** solidA·solidB: 그 끝에 실선이 이어지면 실선과 2m 안쪽으로 붙는 도색은 뺀다 */
+    const laneDash = (z: number, a: number, b: number, solidA = false, solidB = false) => {
+      for (let x = X0 + Math.floor((a - X0) / 8) * 8; x < b; x += 8) {
+        const p = Math.max(a, x);
+        const q = Math.min(b, x + 3);
+        if (q - p < 1 || (solidA && p < a + 2) || (solidB && q > b - 2)) continue;
+        stripe(g, p, z, q, z);
       }
-      stripe(g, X0, s * 9.75, ixW, s * 9.75, 0.12);
-      stripe(g, ixE, s * 9.75, X1, s * 9.75, 0.12);
+    };
+    // 진로변경제한선(별표 6의 506: 정지선으로부터 50m 이내 흰 실선): 모든 정지선 앞 30m
+    const SOLID = 30;
+    for (const lz of [3.35, 6.55]) {
+      for (let i = 0; i <= J.length; i++) {
+        // +X: 앞 교차로의 맞은편 정지선 자리에서 다시 시작 → 다음 정지선 뒤에서 끝
+        const a = i === 0 ? X0 : J[i - 1].w - H;
+        const b = i === J.length ? X1 : J[i].e - H;
+        const s = i === J.length ? b : Math.max(a, b - SOLID);
+        laneDash(lz, a, s, false, s < b);
+        if (s < b) stripe(g, s, lz, b, lz);
+        // −X: 정지선이 x 작은 쪽 끝
+        const c = i === 0 ? X0 : J[i - 1].w + H;
+        const d = i === J.length ? X1 : J[i].e + H;
+        const t = i === 0 ? c : Math.min(d, c + SOLID);
+        if (t > c) stripe(g, c, -lz, t, -lz);
+        laneDash(-lz, t, d, t > c);
+      }
     }
-    // 골목 교차로: 정지선·골목 입구 횡단보도·골목 가운데선
-    stripe(g, alley.stopE, 0.2, alley.stopE, 9.8, 0.45);
-    stripe(g, alley.stopW, -0.2, alley.stopW, -9.8, 0.45);
-    stripe(g, alley.x + 0.2, alley.stopS, alley.x + alley.half - 0.2, alley.stopS, 0.45);
+    // 가장자리선: 차선과 같은 자리에서 끊고 다시 시작 (골목·진출입로 입구, 횡단보도, 교차로 안은 비움)
+    for (const s of [1, -1]) {
+      let x = X0;
+      for (const j of J) {
+        stripe(g, x, s * EDGE, s > 0 ? j.e - H : j.e + H, s * EDGE, 0.12);
+        x = s > 0 ? j.w - H : j.w + H;
+      }
+      stripe(g, x, s * EDGE, X1, s * EDGE, 0.12);
+    }
+    // 정지선: 가운데선 바깥에서 가장자리선 바깥까지 (s = 1: +Z 쪽 차로)
+    const stopLine = (x: number, s: 1 | -1) => stripe(g, x, s * 0.18, x, s * (EDGE + 0.06), SL);
+    for (const j of J) {
+      stopLine(j.e, 1);
+      stopLine(j.w, -1);
+    }
+    stripe(g, ix.x - ix.half + 0.2, ix.stopN, ix.x - 0.18, ix.stopN, SL);
+    stripe(g, ix.x + 0.18, ix.stopS, ix.x + ix.half - 0.2, ix.stopS, SL);
+    stripe(g, mid.driveLane - 1.8, mid.driveStop, mid.driveLane + 1.8, mid.driveStop, SL);
+    // 골목: 정지선·입구 횡단보도, 가운데선은 정지선부터
+    stripe(g, alley.x + 0.18, alley.stopS, alley.x + alley.half - 0.2, alley.stopS, SL);
     zebra(g, alley.x, alley.cross, true, 2 * alley.half - 0.6, 3);
-    for (const dx of [-0.12, 0.12]) stripe(g, alley.x + dx, alley.stopS + 0.4, alley.x + dx, 400, 0.12, YELLOW);
-    // 정지선
-    stripe(g, ix.stopE, 0.2, ix.stopE, 9.8, 0.45);
-    stripe(g, ix.stopW, -0.2, ix.stopW, -9.8, 0.45);
-    stripe(g, ix.x - ix.half + 0.2, ix.stopN, ix.x - 0.2, ix.stopN, 0.45);
-    stripe(g, ix.x + 0.2, ix.stopS, ix.x + ix.half - 0.2, ix.stopS, 0.45);
-    stripe(g, mid.stopE, 0.2, mid.stopE, 9.8, 0.45);
-    stripe(g, mid.stopW, -0.2, mid.stopW, -9.8, 0.45);
-    stripe(g, mid.stopCrossE, 0.2, mid.stopCrossE, 9.8, 0.45);
-    stripe(g, mid.stopCrossW, -0.2, mid.stopCrossW, -9.8, 0.45);
-    stripe(g, mid.driveLane - 1.8, mid.driveStop, mid.driveLane + 1.8, mid.driveStop, 0.45);
+    for (const dx of [-0.12, 0.12]) stripe(g, alley.x + dx, alley.stopS - H, alley.x + dx, 400, 0.12, YELLOW);
     // 횡단보도
     zebra(g, ix.crossE, 0, false, 2 * C.half - 1);
     zebra(g, ix.crossW, 0, false, 2 * C.half - 1);
     zebra(g, ix.x, ix.crossN, true, 2 * ix.half - 0.6);
     zebra(g, ix.x, ix.crossS, true, 2 * ix.half - 0.6);
     zebra(g, mid.cross, 0, false, 2 * C.half - 1);
-    // 세로 도로 가운데선
+    // 세로 도로 가운데선 (교차로 쪽은 정지선에서 끊음)
     const rbz = CITY.rb.z;
-    for (const [a, b] of [[ix.crossS + 2, 400], [rbz + CITY.rb.outer + 70, ix.crossN - 2], [-600, rbz - CITY.rb.outer - 70]] as const) {
+    for (const [a, b] of [[ix.stopS - H, 400], [rbz + CITY.rb.outer + 70, ix.stopN + H], [-600, rbz - CITY.rb.outer - 70]] as const) {
       for (const dx of [-0.12, 0.12]) stripe(g, ix.x + dx, a, ix.x + dx, b, 0.12, YELLOW);
     }
-    // 좌회전 유도선: 차가 도는 원호(뒷바퀴 축 기준)를 차로 폭만큼 안팎으로
+    // 좌회전 유도선 (경찰청 노면표시 매뉴얼 그림 4-4): 회전 차 경로의 안쪽에 한 줄. 횡단보도 끝(가운데선 자리)에서
+    // 들어갈 길의 가운데선까지 잇고, 그 앞 횡단보도 끝에서 멈춘다. 반경은 leftTurnArc 차의 안쪽 차체와 약 0.6m 띄움
     const lt = leftTurnArc();
-    for (const off of [-1.6, 1.6]) {
-      const r = lt.R + off;
-      const pts = [new THREE.Vector2(ix.crossE + 2, lt.cz + r)];
-      for (let i = 0; i <= 32; i++) {
-        const a = (i / 32) * (Math.PI / 2);
-        pts.push(new THREE.Vector2(lt.cx + Math.sin(a) * r, lt.cz + Math.cos(a) * r));
-      }
-      pts.push(new THREE.Vector2(lt.cx + r, ix.crossN + 3));
-      dashedCurve(g, pts);
-    }
+    const rIx = ix.x - lt.cx;
+    guideLine(g, guidePts(ix.crossE + 2, ix.x, rIx, ix.crossN + 2)); // +X 1차로 → 세로 도로 북쪽(−Z)
+    guideLine(g, guidePts(ix.crossW - 2, ix.x, rIx, ix.crossS - 2)); // −X 1차로 → 남쪽(+Z)
+    // 골목: 맞은편(−X) 1차로 정지선에서 골목 가운데선까지 (골목 입구 횡단보도 앞에서 멈춤)
+    guideLine(g, guidePts(alley.stopW - H, alley.x, alley.stopW - H - alley.x, alley.cross - 1.5));
     // 진행방향 노면표시 (별표 6의 537·538·539 도형). 정지선 앞 약 8m·38m에 화살표 끝이 오도록 차로마다 두 개씩
     const mark = (kind: RoadMarkKind, x: number, z: number, heading: number) => g.add(roadMark(kind, x, z, heading, WHITE));
     /** dir = +1: +X로 가는 쪽(정지선 x에서 뒤로), −1: −X로 가는 쪽. kinds는 1·2·3차로 */
