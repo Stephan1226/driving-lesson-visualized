@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { Car } from '../car/Car';
+import { Car, specialPlate } from '../car/Car';
 import { MAT } from '../materials';
 import { canvasTexture, textTexture, lerp } from '../../core/util';
 import { roadMark } from './roadMarks';
@@ -54,7 +54,7 @@ export class ParkEnv {
   fogDusk = new THREE.Color(0x3a3550);
   neighbors: Car[] = [];
   /** 앞 도로를 지나가는 차 (챕터 2) */
-  traffic = new Car({ color: 0xb8322a, plate: '57다 2468' });
+  traffic = new Car({ color: 0xb8322a, plate: specialPlate(14) });
 
   constructor() {
     const g = this.group;
@@ -135,7 +135,8 @@ export class ParkEnv {
     ];
     const r = rng(42);
     for (const [x, z, h, color] of others) {
-      const car = new Car({ color, plate: `${10 + Math.floor(r() * 89)}${'가나다라마'[Math.floor(r() * 5)]} ${1000 + Math.floor(r() * 8999)}` });
+      r(); r(); r(); // 예전 무작위 번호 몫 — 뒤의 나무·건물 배치가 그대로 이어지게
+      const car = new Car({ color, plate: specialPlate(1 + this.neighbors.length) });
       car.setPose(x, z, h);
       car.setMirrorFold(1);
       g.add(car.root);
@@ -427,7 +428,7 @@ export class GarageEnv {
     for (const z of [-6.75, 1.75, 10.25]) makePillar(10.25, z);
 
     // 주변 차량
-    this.neighbor = new Car({ color: 0xeceff2, doorRight: true, plate: '34나 5678' });
+    this.neighbor = new Car({ color: 0xeceff2, doorRight: true, plate: specialPlate(15) });
     this.neighbor.setPose(0, -2.35, 0);
     this.neighbor.setMirrorFold(1);
     g.add(this.neighbor.root);
@@ -436,7 +437,7 @@ export class GarageEnv {
       [12.2, -2.5, Math.PI, 0x23262c], [12.2, 3.5, Math.PI, 0xe9ebee], [12.2, 6, Math.PI, 0x5a7896], [12.2, -5, Math.PI, 0xa9b0b8],
     ];
     for (const [x, z, h, color] of others) {
-      const car = new Car({ color });
+      const car = new Car({ color, plate: specialPlate(16 + this.neighbors.length) });
       car.setPose(x, z, h);
       car.setMirrorFold(1);
       g.add(car.root);

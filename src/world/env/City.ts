@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { Car } from '../car/Car';
+import { Car, specialPlate } from '../car/Car';
 import { Walker } from '../Fx';
 import { MAT } from '../materials';
 import { canvasTexture, textTexture, blinkOn } from '../../core/util';
@@ -419,7 +419,7 @@ export class CityEnv {
     // 장면용 차·보행자
     const colors = [0xe9ebee, 0x2b2f36, 0x9aa3ad, 0xb63a2f, 0x6f8fa8, 0xf2f2f2, 0x3b4a5c, 0x8c2e2e, 0xd9d9d6, 0x4a4f57];
     for (let i = 0; i < colors.length; i++) {
-      const car = new Car({ color: colors[i], plate: `${20 + i * 7}${'가나다라마바사아자차'[i]} ${2000 + i * 731}` });
+      const car = new Car({ color: colors[i], plate: specialPlate(24 + i) });
       car.root.visible = false;
       this.cars.push(car);
       g.add(car.root);
