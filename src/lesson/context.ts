@@ -5,6 +5,7 @@ import { Hand, Mannequin, type HandPose, type HandTarget, type FootTarget } from
 import { clusterDefaults } from '../world/car/Cluster';
 import { placeCoin } from '../world/car/Wheel';
 import { ParkEnv, GarageEnv, type EnvName } from '../world/env/Environment';
+import { CityEnv } from '../world/env/City';
 import { Fx } from '../world/Fx';
 import { Mirrors, type MirrorId } from '../world/Mirrors';
 import { MAT } from '../world/materials';
@@ -33,6 +34,7 @@ export interface Ctx {
   handR: Hand;
   park: ParkEnv;
   garage: GarageEnv;
+  city: CityEnv;
   env: EnvName;
   mode: Mode;
   fx: Fx;
@@ -64,8 +66,9 @@ export function createCtx(renderer: THREE.WebGLRenderer, ui: Overlay): Ctx {
   car.root.add(handL.root, handR.root);
   const park = new ParkEnv();
   const garage = new GarageEnv();
+  const city = new CityEnv();
   const fx = new Fx();
-  scene.add(park.group, garage.group, car.root, fx.group);
+  scene.add(park.group, garage.group, city.group, car.root, fx.group);
   const mirrors = new Mirrors({
     left: car.mirrors[0].glass,
     right: car.mirrors[1].glass,
@@ -73,7 +76,7 @@ export function createCtx(renderer: THREE.WebGLRenderer, ui: Overlay): Ctx {
   });
   car.onTick = (on) => sfx.tick(on);
   return {
-    renderer, scene, camera, car, cockpit, man, handL, handR, park, garage, env: 'park', mode: 'exterior', fx, mirrors, ui,
+    renderer, scene, camera, car, cockpit, man, handL, handR, park, garage, city, env: 'park', mode: 'exterior', fx, mirrors, ui,
     labels: ui.labels, sfx, time: 0, dusk: 0, driver: null, ghost: {}, footBlend: 0, hud: null,
   };
 }
@@ -82,8 +85,14 @@ export function setEnv(ctx: Ctx, env: EnvName) {
   ctx.env = env;
   ctx.park.group.visible = env === 'park';
   ctx.garage.group.visible = env === 'garage';
+  ctx.city.group.visible = env === 'city';
   const fog = ctx.scene.fog as THREE.Fog;
-  if (env === 'garage') {
+  if (env === 'city') {
+    ctx.scene.background = null;
+    fog.color.set(0xe3ebf2);
+    fog.near = 70;
+    fog.far = 240;
+  } else if (env === 'garage') {
     ctx.scene.background = new THREE.Color(0x1a1d20);
     fog.color.set(0x2a2e31);
     fog.near = 14;
@@ -130,6 +139,7 @@ export function resetWorld(ctx: Ctx) {
   car.mirrors.forEach((m) => m.pivot.rotation.set(0, 0, 0));
   ctx.garage.neighbor.setDoor(0);
   ctx.park.reset();
+  ctx.city.reset();
   car.setMirrorFold(0);
 
   Object.assign(c, {

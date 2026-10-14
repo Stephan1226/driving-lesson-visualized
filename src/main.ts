@@ -157,6 +157,7 @@ function frame(ts: number) {
   applyDriver(ctx);
   ctx.car.update(dt, ctx.time, ctx.dusk);
   ctx.fx.update(ctx.time);
+  if (ctx.env === 'city') ctx.city.update(ctx.time);
   ctx.garage.ceiling.visible = ctx.camera.position.y < 2.6;
 
   renderer.shadowMap.needsUpdate = true;

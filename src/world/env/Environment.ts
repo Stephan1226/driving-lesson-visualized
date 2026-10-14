@@ -3,14 +3,15 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { Car } from '../car/Car';
 import { MAT } from '../materials';
 import { canvasTexture, textTexture, lerp } from '../../core/util';
+import { roadMark } from './roadMarks';
 
-export type EnvName = 'park' | 'garage';
+export type EnvName = 'park' | 'garage' | 'city';
 
 /** 공원 주차장 남쪽 출구(출구 전용 통로 x0..x1)와 그 앞 왕복 2차로 도로(중심 z, 반폭 half) */
 export const PARK_ROAD = { x0: 2.5, x1: 9.5, lotZ: -19.1, z: -31.25, half: 4, lane: 1.85, stopZ: -26.45 };
 
 /** 결정적 난수(매번 같은 배치) */
-function rng(seed: number) {
+export function rng(seed: number) {
   return () => {
     seed = (seed * 16807) % 2147483647;
     return (seed - 1) / 2147483646;
@@ -28,7 +29,7 @@ function line(group: THREE.Group, x0: number, z0: number, x1: number, z1: number
   return m;
 }
 
-const noiseTex = (base: string, spread: number, size = 256) =>
+export const noiseTex = (base: string, spread: number, size = 256) =>
   canvasTexture(size, size, (c, w, h) => {
     c.fillStyle = base;
     c.fillRect(0, 0, w, h);
@@ -120,15 +121,10 @@ export class ParkEnv {
       line(g, back, -16.25, back, 16.25);
     }
     // 진행 방향 화살표 (한 방향 순환: 서쪽 통로 ↑, 동쪽 통로 ↓ 출구)
-    for (const [x, z, a] of [[6, -8, Math.PI / 2], [6, 8, Math.PI / 2], [-6, 8, -Math.PI / 2], [-6, -8, -Math.PI / 2]] as const) {
-      const arrow = new THREE.Mesh(
-        new THREE.ShapeGeometry(arrowShape()),
-        new THREE.MeshStandardMaterial({ color: 0xf4f4f0, roughness: 0.8 }),
-      );
-      arrow.rotation.x = -Math.PI / 2;
-      arrow.rotation.z = a;
-      arrow.position.set(x, 0.012, z);
-      g.add(arrow);
+    // 저속 구간이라 표준 직진 화살표(별표 6의 537)를 3m로
+    const parkArrowMat = new THREE.MeshStandardMaterial({ color: 0xf4f4f0, roughness: 0.8 });
+    for (const [x, z, h] of [[6, -8, Math.PI / 2], [6, 8, Math.PI / 2], [-6, 8, -Math.PI / 2], [-6, -8, -Math.PI / 2]] as const) {
+      g.add(roadMark('straight', x - Math.cos(h) * 1.5, z + Math.sin(h) * 1.5, h, parkArrowMat, 3));
     }
 
     // 주변 차량
@@ -387,12 +383,10 @@ export class GarageEnv {
     for (const z of slotLines) line(g, 9.5, z, 14.9, z, 0.12);
     line(g, 2.5, -16, 2.5, 16, 0.1, 0xf2c94c);
     line(g, 9.5, -16, 9.5, 16, 0.1, 0xf2c94c);
-    for (const [x, z, a] of [[6, -6, 0], [6, 6, 0], [6, 12, 0]] as const) {
-      const arrow = new THREE.Mesh(new THREE.ShapeGeometry(arrowShape()), new THREE.MeshStandardMaterial({ color: 0xf4f4f0 }));
-      arrow.rotation.x = -Math.PI / 2;
-      arrow.rotation.z = a - Math.PI / 2;
-      arrow.position.set(x, 0.012, z);
-      g.add(arrow);
+    const garageArrowMat = new THREE.MeshStandardMaterial({ color: 0xf4f4f0 });
+    for (const [x, z] of [[6, -6], [6, 6], [6, 12]] as const) {
+      // +Z로 진행 (heading −π/2), 몸통 끝이 화살표 가운데에서 1.5m 뒤
+      g.add(roadMark('straight', x, z - 1.5, -Math.PI / 2, garageArrowMat, 3));
     }
 
     // 기둥
@@ -458,7 +452,7 @@ export class GarageEnv {
   }
 }
 
-function arrowShape() {
+export function arrowShape() {
   const s = new THREE.Shape();
   s.moveTo(-1.2, -0.15);
   s.lineTo(0.4, -0.15);

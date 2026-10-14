@@ -37,15 +37,21 @@ cp $TMP/ch1-pillar-exit.gif docs/media/
 - Keep each GIF under about 4–5 MB. Trim the range to about 8–15 s, or use `GIF_COLORS=96`.
 - Look at a frame or two before committing: `ffmpeg -ss 4 -i x.gif -frames:v 1 check.png`.
 
-Current clips (re-record a clip when its scene changes):
+Current clips. Re-record a clip when its scene changes. Ranges are seconds of the recorded frames: frame 0 is scene time 0.2 s.
 
 | file | query | record s | range | notes |
 |---|---|---|---|---|
-| ch1-walkaround.gif | `step=walkaround` | 11 | 1.5–9.5 | `GIF_COLORS=96` |
-| ch1-pillar-exit.gif | `step=garage-exit-right` | 18 | 2.5–17.5 | |
-| ch1-side-mirror.gif | `step=side-mirror` | 10 | 0.5–10 | |
-| ch2-pull-out.gif | `ch=2&step=depart-intro` | 29 | 2–10 | |
-| ch2-exit-merge.gif | `ch=2&step=depart-intro` | 29 | 13.5–25 | same recording as above |
+| ch1-walkaround.gif | `step=walkaround` | 10 | 0.2–8.2 | `GIF_COLORS=96` |
+| ch1-pillar-exit.gif | `step=garage-exit-right` | 17 | 1.2–16.2 | |
+| ch1-side-mirror.gif | `step=side-mirror` | 9 | 0–8.7 | |
+| ch2-pull-out.gif | `ch=2&step=depart-intro` | 25 | 0.7–8.7 | |
+| ch2-exit-merge.gif | `ch=2&step=depart-intro` | 25 | 12.2–23.7 | same recording as above |
+| ch2-exit-blind.gif | `ch=2&step=exit-blind` | 9.5 | 0.6–9.2 | |
+| ch2-left-arrow.gif | `ch=2&step=left-arrow` | 10 | 1.4–9.6 | |
+| ch2-right-red.gif | `ch=2&step=right-red` | 21 | 3.8–20.8 | |
+| ch2-roundabout.gif | `ch=2&step=rb-signal` | 16 | 0–15.8 | |
+
+Fixed-camera scenes produce small GIFs, because only the changing parts are stored. Chase-camera scenes are the big ones.
 
 ## Map screenshots
 
@@ -59,6 +65,16 @@ node $S/shot.mjs http://localhost:5179 "step=mirror-fold" $TMP/garage.png --t 0 
   --cam '{"pos":"18,20,-14","look":"5,0,1","fov":45}' --eval 'Object.assign(window.__app.ctx.scene.fog, { near: 30, far: 75 })'
 ffmpeg -loglevel error -y -i $TMP/park.png -q:v 3 docs/media/map-park.jpg
 ffmpeg -loglevel error -y -i $TMP/garage.png -q:v 3 docs/media/map-garage.jpg
+```
+
+The city is dense, so oblique far views get blocked by buildings. Use near-top-down views instead, with fog pushed far:
+
+```bash
+WIDE='(() => { const c = window.__app.ctx.camera; c.near = 0.5; c.updateProjectionMatrix(); Object.assign(window.__app.ctx.scene.fog, { near: 200, far: 700 }); })()'
+node $S/shot.mjs http://localhost:5179 "ch=2&step=red-stop" $TMP/city.png --t 0 --hide-ui --port 9641 \
+  --cam '{"pos":"252,95,38","look":"256,0,-2","fov":45}' --eval "$WIDE"          # → map-city.jpg (signal intersection)
+node $S/shot.mjs http://localhost:5179 "ch=2&step=rb-yield" $TMP/rb.png --t 0 --hide-ui --port 9633 \
+  --cam '{"pos":"295,40,-130","look":"260,0,-172","fov":46}' --eval "$WIDE"     # → map-roundabout.jpg
 ```
 
 When a new map (environment) is added, pick an overview camera the same way, add a `map-<name>.jpg` column to the README's 맵 table, and add its preset here.

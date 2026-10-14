@@ -2,18 +2,11 @@ import type * as THREE from 'three';
 import type { CamPose, Step } from '../types';
 import { S, V, drive, engineRunning } from '../helpers';
 import { sampleShots } from '../Player';
-import { DrivePath, spiralAngle, type Pose, type Seg } from '../../core/path';
+import { DrivePath, type Pose, type Seg } from '../../core/path';
+import { corner, cornerLen, mix } from '../road';
 import { PARK_ROAD } from '../../world/env/Environment';
 import { CAR } from '../../world/car/Car';
 import { crossed, lerp, motion, sseg } from '../../core/util';
-
-/** 핸들을 서서히 감았다가 다시 풀며 90° 도는 모퉁이 */
-const corner = (dir: 1 | -1, r: number, easeLen: number): Seg[] => [
-  { type: 'spiral', len: easeLen, r, dir },
-  { type: 'arc', r, dir, a: Math.PI / 2 - 2 * spiralAngle(easeLen, r) },
-  { type: 'spiral', len: easeLen, r, dir, out: true },
-];
-const cornerLen = (r: number, easeLen: number) => easeLen + (r * Math.PI) / 2;
 
 /**
  * Chapter 1에서 출발 준비를 마친 자리 → 통로로 좌회전 → 출구 정지선 → 도로 가까운 차로로 우회전
@@ -52,9 +45,6 @@ const carAt = (t: number) => PATH.sample(travel(t));
 const fwd = (h: number) => V(Math.cos(h), 0, -Math.sin(h));
 const right = (h: number) => V(Math.sin(h), 0, Math.cos(h));
 const ground = (p: Pose) => V(p.x, 0, p.z);
-
-const mix = (a: CamPose, b: CamPose, k: number): CamPose =>
-  k <= 0 ? a : { pos: a.pos.lerp(b.pos, k), look: a.look.lerp(b.look, k), fov: lerp(a.fov ?? 45, b.fov ?? 45, k) };
 
 /** Chapter 1 마지막 장면의 카메라 자리에서 시작해, 비켜서서 빠져나오는 차를 눈으로 좇는다 */
 const OPENING = [S(0, [2.75, 2.6, 7.08], [0, 0.7, 0], 40), S(4, [10.5, 3.0, 5.5], [3.0, 0.7, -0.8], 42)];
