@@ -11,8 +11,13 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const MANUAL_RAF = `
   window.__raf = [];
   window.requestAnimationFrame = (cb) => (window.__raf.push(cb), window.__raf.length);
-  window.__ts = 0;
-  window.__step = (dt) => { window.__ts += dt * 1000; const q = window.__raf; window.__raf = []; q.forEach((cb) => cb(window.__ts)); };
+  // 시작 시각을 실제 시계에 맞춘다 (THREE.Timer는 생성 시각 기준으로 재므로, 0부터 세면 첫 프레임이 음수로 튄다)
+  window.__ts = null;
+  window.__step = (dt) => {
+    if (window.__ts === null) window.__ts = performance.now();
+    window.__ts += dt * 1000;
+    const q = window.__raf; window.__raf = []; q.forEach((cb) => cb(window.__ts));
+  };
 `;
 
 export async function launch({ port = 9333, width = 1280, height = 720 } = {}) {
