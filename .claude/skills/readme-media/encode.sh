@@ -1,5 +1,5 @@
 #!/bin/zsh
-# 프레임(20fps) → MP4(원본 크기) + GIF(PR 본문용, 10fps · 기본 가로 520)
+# 프레임(20fps) → MP4(원본 크기) + GIF(README용, 10fps · 기본 가로 520)
 # ./encode.sh <framesDir> <outBase> [gifWidth] [startSec] [endSec]
 set -e
 frames=$1; out=$2; w=${3:-520}; ss=${4:-0}; to=${5:-}

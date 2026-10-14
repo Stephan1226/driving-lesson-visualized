@@ -1,6 +1,7 @@
 // 스틸 한 장: 장면의 t초 지점, 또는 지정한 카메라(UI 숨김)로
-// node shot.mjs <baseUrl> "<query>" <out.png> [--t 12.5] [--cam '{"pos":"11,24,13","look":"3.5,0,-17","fov":42}'] [--hide-ui] [--port 9334]
-//   --cam 을 주면 자유 시점으로 전환해 같은 구도를 main(변경 전)과 비교할 수 있다
+// node shot.mjs <baseUrl> "<query>" <out.png> [--t 12.5] [--cam '{"pos":"11,24,13","look":"3.5,0,-17","fov":42}'] [--hide-ui] [--eval '<js>'] [--port 9334]
+//   --cam: 자유 시점으로 전환해 지정한 구도로 촬영 (맵 전경, 변경 전/후 비교)
+//   --eval: 촬영 직전 페이지에서 실행할 JS (예: 'window.__app.ctx.scene.fog.far = 80')
 import { launch } from './cdp.mjs';
 
 const [base, query, out, ...rest] = process.argv.slice(2);
@@ -16,12 +17,14 @@ if (cam) {
     const { ctx, player } = window.__app;
     player.userCam = true;
     player.controls.enableDamping = false;
+    player.controls.maxDistance = 500;
     ctx.camera.position.set(${cam.pos});
     player.controls.target.set(${cam.look});
     ctx.camera.fov = ${cam.fov ?? 45};
     ctx.camera.updateProjectionMatrix();
   })()`);
 }
+if (opt('--eval')) await b.eval(opt('--eval'));
 await b.eval(`window.__app.player.playing = false`);
 await b.step(2);
 await b.shot(out);
