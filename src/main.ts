@@ -5,7 +5,8 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { Overlay } from './ui/Overlay';
 import { createCtx, applyDriver, eyeWorld, resetWorld, setEnv, applyMode } from './lesson/context';
 import { Player } from './lesson/Player';
-import { SECTIONS, STEPS } from './lesson/chapter1';
+import { chapter1 } from './lesson/chapter1';
+import { chapter2 } from './lesson/chapter2';
 import { sfx } from './core/audio';
 import { blinkOn } from './core/util';
 
@@ -19,8 +20,15 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.shadowMap.autoUpdate = false;
 
+// 챕터 선택: ?ch=2
+const CHAPTERS = [chapter1, chapter2];
+const params = new URLSearchParams(location.search);
+const chapter = CHAPTERS.find((c) => String(c.no) === params.get('ch')) ?? CHAPTERS[0];
+const STEPS = chapter.steps;
+document.title = `운전 첫걸음 · Chapter ${chapter.no} ${chapter.title}`;
+
 let player: Player;
-const ui = new Overlay(document.getElementById('ui')!, SECTIONS, STEPS, {
+const ui = new Overlay(document.getElementById('ui')!, chapter, STEPS, {
   onStart: () => {
     sfx.unlock();
     void player.go(0);
@@ -36,7 +44,7 @@ const ui = new Overlay(document.getElementById('ui')!, SECTIONS, STEPS, {
     return !sfx.muted;
   },
   onCamReset: () => player.exitUserCam(),
-});
+}, CHAPTERS);
 
 const ctx = createCtx(renderer, ui);
 const pmrem = new THREE.PMREMGenerator(renderer);
@@ -62,7 +70,6 @@ function attract(time: number) {
 }
 
 // 주소로 바로 진입: ?step=3 (또는 id) &t=초 &pause=1
-const params = new URLSearchParams(location.search);
 const stepParam = params.get('step');
 if (stepParam) {
   const idx = /^\d+$/.test(stepParam) ? Number(stepParam) - 1 : STEPS.findIndex((s) => s.id === stepParam);

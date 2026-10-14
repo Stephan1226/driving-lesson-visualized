@@ -43,6 +43,8 @@ export class Labels {
     const pill = document.createElement('div');
     pill.className = 'pill';
     el.append(stem, dot, pill);
+    // 처음엔 투명하게: 숨긴 라벨이 첫 프레임에 잠깐 비쳤다 사라지지 않도록
+    el.style.opacity = '0';
     this.layer.appendChild(el);
     const opts: Required<LabelOpts> = { sub: '', kind: '', dir: 'up', len: 36, big: false, visible: true, ...o };
     const l: Label = { el, pill, stem, anchor, opts };

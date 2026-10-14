@@ -6,6 +6,9 @@ import { canvasTexture, textTexture, lerp } from '../../core/util';
 
 export type EnvName = 'park' | 'garage';
 
+/** 공원 주차장 남쪽 출구(출구 전용 통로 x0..x1)와 그 앞 왕복 2차로 도로(중심 z, 반폭 half) */
+export const PARK_ROAD = { x0: 2.5, x1: 9.5, lotZ: -19.1, z: -31.25, half: 4, lane: 1.85, stopZ: -26.45 };
+
 /** 결정적 난수(매번 같은 배치) */
 function rng(seed: number) {
   return () => {
@@ -49,6 +52,8 @@ export class ParkEnv {
   fogDay = new THREE.Color(0xdfeaf5);
   fogDusk = new THREE.Color(0x3a3550);
   neighbors: Car[] = [];
+  /** 앞 도로를 지나가는 차 (챕터 2) */
+  traffic = new Car({ color: 0xb8322a, plate: '57다 2468' });
 
   constructor() {
     const g = this.group;
@@ -92,14 +97,20 @@ export class ParkEnv {
     lot.position.y = 0.006;
     lot.receiveShadow = true;
     g.add(lot);
-    // 연석
+    // 연석 (남쪽은 출구만큼 비움)
     const curbMat = new THREE.MeshStandardMaterial({ color: 0xc9c8c2, roughness: 0.9 });
-    for (const [x, z, w, d] of [[0, -19.1, 32.4, 0.25], [0, 19.1, 32.4, 0.25], [-16.1, 0, 0.25, 38.4], [16.1, 0, 0.25, 38.4]]) {
-      const c = new THREE.Mesh(new THREE.BoxGeometry(w, 0.15, d), curbMat);
-      c.position.set(x, 0.075, z);
+    const curb = (x0: number, z0: number, x1: number, z1: number) => {
+      const c = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, 0.15, z1 - z0), curbMat);
+      c.position.set((x0 + x1) / 2, 0.075, (z0 + z1) / 2);
       c.receiveShadow = c.castShadow = true;
       g.add(c);
-    }
+    };
+    const road = PARK_ROAD;
+    curb(-16.2, -19.225, road.x0, -18.975);
+    curb(road.x1, -19.225, 16.2, -18.975);
+    curb(-16.2, 18.975, 16.2, 19.225);
+    curb(-16.225, -19.2, -15.975, 19.2);
+    curb(15.975, -19.2, 16.225, 19.2);
 
     // 주차 구획
     const rows: [number, number][] = [[-2.5, 2.5], [9.5, 14.5], [-14.5, -9.5]];
@@ -108,8 +119,8 @@ export class ParkEnv {
       const back = x0 < 0 && x1 <= 2.5 ? x0 : x1;
       line(g, back, -16.25, back, 16.25);
     }
-    // 진행 방향 화살표
-    for (const [x, z, a] of [[6, -8, 0], [6, 8, Math.PI], [-6, 8, Math.PI], [-6, -8, 0]] as const) {
+    // 진행 방향 화살표 (한 방향 순환: 서쪽 통로 ↑, 동쪽 통로 ↓ 출구)
+    for (const [x, z, a] of [[6, -8, Math.PI / 2], [6, 8, Math.PI / 2], [-6, 8, -Math.PI / 2], [-6, -8, -Math.PI / 2]] as const) {
       const arrow = new THREE.Mesh(
         new THREE.ShapeGeometry(arrowShape()),
         new THREE.MeshStandardMaterial({ color: 0xf4f4f0, roughness: 0.8 }),
@@ -150,14 +161,18 @@ export class ParkEnv {
       }
       t.position.set(x, 0, z);
       t.traverse((o) => (o.castShadow = true));
-      g.add(t);
+      return t;
     };
+    // 도로와 주차장~도로 사이 잔디(출구 앞)에 걸리는 나무는 빼기 (난수 순서는 그대로 유지)
+    const onRoad = (x: number, z: number) =>
+      Math.abs(z - road.z) < road.half + 2.4 || (z < road.lotZ && z > road.z && Math.abs(x) < 28);
     for (let i = 0; i < 46; i++) {
       const side = i % 4;
       const u = (r() - 0.5) * 2;
       const d = 18.5 + r() * 14;
       const [x, z] = side === 0 ? [u * 26, -d - 2] : side === 1 ? [u * 26, d + 2] : side === 2 ? [-d, u * 26] : [d, u * 26];
-      tree(x, z, 0.8 + r() * 0.7);
+      const t = tree(x, z, 0.8 + r() * 0.7);
+      if (!onRoad(x, z)) g.add(t);
     }
     this.lamps = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffe6b0, emissiveIntensity: 0.1 });
     const poleMat = new THREE.MeshStandardMaterial({ color: 0x3b4048, roughness: 0.5, metalness: 0.5 });
@@ -202,7 +217,9 @@ export class ParkEnv {
       const d = 95 + r() * 40;
       const h = 30 + r() * 30;
       const b = new THREE.Mesh(new THREE.BoxGeometry(16, h, 10), bldMat);
-      b.position.set(Math.cos(a) * d, h / 2, Math.sin(a) * d);
+      let bz = Math.sin(a) * d;
+      if (Math.abs(bz - road.z) < 16) bz = road.z + Math.sign(bz - road.z) * 16;
+      b.position.set(Math.cos(a) * d, h / 2, bz);
       b.rotation.y = -a + Math.PI / 2;
       g.add(b);
     }
@@ -216,6 +233,68 @@ export class ParkEnv {
     const sp = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.4), poleMat);
     sp.position.set(-16.62, 1.2, 0);
     g.add(sign, sp);
+
+    // ── 출구 통로와 앞 도로 ─────────────────────────
+    const edge = road.z + road.half;
+    const roadMat = (w: number, d: number) => {
+      const tex = asphaltTex.clone();
+      tex.repeat.set(w / 3.2, d / 3.2);
+      return new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95 });
+    };
+    const flat = (w: number, d: number, x: number, z: number) => {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), roadMat(w, d));
+      m.rotation.x = -Math.PI / 2;
+      m.position.set(x, 0.006, z);
+      m.receiveShadow = true;
+      g.add(m);
+    };
+    flat(road.x1 - road.x0, -19 - edge, (road.x0 + road.x1) / 2, (-19 + edge) / 2);
+    flat(400, road.half * 2, 0, road.z);
+    curb(road.x0 - 0.25, edge, road.x0, -18.975);
+    curb(road.x1, edge, road.x1 + 0.25, -18.975);
+    curb(-200, edge, road.x0 - 0.25, edge + 0.25);
+    curb(road.x1 + 0.25, edge, 200, edge + 0.25);
+    curb(-200, road.z - road.half - 0.25, 200, road.z - road.half);
+    // 중앙선(노란 겹선)·가장자리선·정지선
+    for (const dz of [-0.1, 0.1]) line(g, -200, road.z + dz, 200, road.z + dz, 0.1, 0xf2c230);
+    line(g, -200, edge - 0.3, road.x0 - 0.3, edge - 0.3);
+    line(g, road.x1 + 0.3, edge - 0.3, 200, edge - 0.3);
+    line(g, -200, road.z - road.half + 0.3, 200, road.z - road.half + 0.3);
+    line(g, road.x0 + 0.15, road.stopZ, road.x1 - 0.15, road.stopZ, 0.35);
+    const stopText = new THREE.Mesh(
+      new THREE.PlaneGeometry(3.2, 1.0),
+      new THREE.MeshStandardMaterial({ map: textTexture('일단정지', { w: 512, h: 160, bg: 'transparent', fg: '#f4f4f0', size: 120, weight: 800 }), transparent: true, roughness: 0.8 }),
+    );
+    stopText.rotation.x = -Math.PI / 2;
+    stopText.position.set((road.x0 + road.x1) / 2, 0.012, road.stopZ + 1.9);
+    g.add(stopText);
+    const exitSign = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.3, 0.5),
+      new THREE.MeshStandardMaterial({ map: textTexture('출구 EXIT', { w: 512, h: 196, bg: '#1b7f4b', fg: '#ffffff', size: 74 }) }),
+    );
+    exitSign.position.set(road.x1 + 0.9, 2.45, road.lotZ - 0.5);
+    const ep = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.4), poleMat);
+    ep.position.set(road.x1 + 0.9, 1.2, road.lotZ - 0.52);
+    g.add(exitSign, ep);
+    // 가로수
+    for (let x = -64; x <= 100; x += 12) {
+      g.add(tree(x, road.z - road.half - 3, 0.85));
+      if (Math.abs(x) > 20) g.add(tree(x + 6, edge + 3, 0.85));
+    }
+
+    this.traffic.root.visible = false;
+    g.add(this.traffic.root);
+  }
+
+  /** 그림자를 만드는 범위(±16m)의 중심을 옮긴다 — 차가 주차장 밖으로 나갈 때 */
+  setSunCenter(x: number, z: number) {
+    this.sun.position.set(x + 12, 22, z + 9);
+    this.sun.target.position.set(x, 0, z);
+  }
+
+  reset() {
+    this.setSunCenter(0, 0);
+    this.traffic.root.visible = false;
   }
 
   setDaylight(k: number, scene: THREE.Scene) {

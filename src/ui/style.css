@@ -622,6 +622,32 @@ body {
   padding: 30px 32px 26px;
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
 }
+.start .chapters {
+  display: flex;
+  gap: 4px;
+  margin: -8px -10px 18px;
+  padding: 4px;
+  background: #eef1f6;
+  border-radius: 14px;
+}
+.start .chapters a {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 10px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-3);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.start .chapters a.cur {
+  background: #fff;
+  color: var(--accent);
+  box-shadow: 0 1px 4px rgba(20, 30, 50, 0.1);
+}
 .start .eyebrow {
   font-size: 13px;
   font-weight: 800;

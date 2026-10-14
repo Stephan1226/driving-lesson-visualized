@@ -5,6 +5,7 @@ import type { HandTarget } from '../world/car/Driver';
 import type { CamFn, Shot, V3 } from './types';
 import { ease, lerp, sseg } from '../core/util';
 import type { Gear } from '../world/car/Cluster';
+import type { DrivePath } from '../core/path';
 
 export const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 export const S = (t: number, pos: V3, look: V3, fov?: number): Shot => ({ t, pos, look, fov });
@@ -18,6 +19,17 @@ export const wheelHand = (ctx: Ctx, side: 'L' | 'R', angle?: number) => (): Hand
 /** a → b 로 손 이동 (k: 0..1) */
 export const reach = (a: () => HandTarget, b: () => HandTarget, k: number, lift = 0.05) => () =>
   k <= 0 ? a() : k >= 1 ? b() : blendHand(a(), b(), ease(k), lift);
+
+/** 경로 위 s 지점으로 차를 옮기고 바퀴 조향·회전을 맞춘다 */
+export function drive(ctx: Ctx, path: DrivePath, s: number, steerState: { v: number }, dt: number, steerOverride?: number) {
+  const p = path.sample(s);
+  ctx.car.setPose(p.x, p.z, p.h);
+  const target = steerOverride ?? p.steer;
+  steerState.v = dt > 0 ? lerp(steerState.v, target, 1 - Math.exp(-dt * 6)) : target;
+  ctx.car.setSteer(steerState.v);
+  ctx.car.setRoll(s);
+  ctx.car.root.updateMatrixWorld(true);
+}
 
 /** 시동이 걸린 상태의 계기판 */
 export function engineRunning(ctx: Ctx, gear: Gear = 'P') {

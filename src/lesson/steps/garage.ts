@@ -1,11 +1,11 @@
 import * as THREE from 'three';
 import type { Ctx } from '../context';
 import type { Step } from '../types';
-import { S, V, rows } from '../helpers';
+import { S, V, rows, drive } from '../helpers';
 import { DrivePath, firstHitParts, spiralAngle, BODY_PART, type Box2, type Seg, type Part } from '../../core/path';
 import { PILLAR } from '../../world/env/Environment';
 import { MIRROR_BOX } from '../../world/car/Car';
-import { crossed, ease, lerp, seg, sseg, track } from '../../core/util';
+import { crossed, ease, seg, sseg, track } from '../../core/util';
 
 /** 우리 차가 주차된 자리: 기둥(+Z) 쪽으로 약 15cm까지 붙임 */
 const PARKED = { x: 0, z: 0.27, h: 0 };
@@ -54,17 +54,6 @@ const exitPath = () =>
     { type: 'line', d: AVOID.straight },
     ...quarterTurn(-1),
   ]);
-
-/** 경로 위 s 지점으로 차를 옮기고 바퀴 조향·회전을 맞춘다 */
-function drive(ctx: Ctx, path: DrivePath, s: number, steerState: { v: number }, dt: number, steerOverride?: number) {
-  const p = path.sample(s);
-  ctx.car.setPose(p.x, p.z, p.h);
-  const target = steerOverride ?? p.steer;
-  steerState.v = dt > 0 ? lerp(steerState.v, target, 1 - Math.exp(-dt * 6)) : target;
-  ctx.car.setSteer(steerState.v);
-  ctx.car.setRoll(s);
-  ctx.car.root.updateMatrixWorld(true);
-}
 
 function pushTrails(ctx: Ctx) {
   ctx.fx.trails[0].push(ctx.car.wheelContact(1));
