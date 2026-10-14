@@ -15,6 +15,13 @@ export interface SectionInfo {
   title: string;
   place: string;
 }
+export interface ChapterInfo {
+  no: number;
+  title: string;
+  /** 시작 화면 소개 문구 */
+  intro: string;
+  sections: SectionInfo[];
+}
 
 export interface OverlayHandlers {
   onStart(): void;
@@ -69,13 +76,16 @@ export class Overlay {
   private toastLayer = h('div');
   freeCam = h('div', 'free-cam hidden', '자유 시점 — 클릭하면 안내 카메라로 돌아갑니다');
   private current = -1;
+  private sections: SectionInfo[];
 
   constructor(
     root: HTMLElement,
-    private sections: SectionInfo[],
+    chapter: ChapterInfo,
     private steps: StepText[],
     handlers: OverlayHandlers,
+    chapters: ChapterInfo[] = [chapter],
   ) {
+    const sections = (this.sections = chapter.sections);
     root.append(this.fadeEl);
     this.labels = new Labels(root);
     root.append(this.toastLayer);
@@ -142,10 +152,14 @@ export class Overlay {
 
     // 시작 화면
     const box = h('div', 'box');
-    box.innerHTML = `
-      <div class="eyebrow">운전 첫걸음 · CHAPTER 1</div>
-      <h1>주행 전 확인 사항</h1>
-      <p>운전을 처음 배우는 분을 위한 3D 애니메이션 강의입니다. 차에 타기 전 점검부터 출발 직전 자세 잡기까지, 장면마다 직접 보면서 익혀요.</p>
+    const tabs =
+      chapters.length > 1
+        ? `<nav class="chapters">${chapters.map((c) => `<a href="?ch=${c.no}"${c.no === chapter.no ? ' class="cur"' : ''}>CH ${c.no} · ${c.title}</a>`).join('')}</nav>`
+        : '';
+    box.innerHTML = `${tabs}
+      <div class="eyebrow">운전 첫걸음 · CHAPTER ${chapter.no}</div>
+      <h1>${chapter.title}</h1>
+      <p>${chapter.intro}</p>
       <ol>${sections.map((s, i) => `<li><span>${i + 1}</span>${s.title} <em style="font-style:normal;color:#9aa3b2;font-size:13px">· ${s.place}</em></li>`).join('')}</ol>
       <button>시작하기</button>
       <div class="keys"><kbd>←</kbd> <kbd>→</kbd> 이전/다음 · <kbd>Space</kbd> 일시정지 · <kbd>R</kbd> 다시 보기 · 화면을 드래그하면 자유 시점</div>`;

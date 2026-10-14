@@ -1,7 +1,7 @@
 import type * as THREE from 'three';
 import type { EnvName } from '../world/env/Environment';
 import type { MirrorId } from '../world/Mirrors';
-import type { StepText } from '../ui/Overlay';
+import type { ChapterInfo, StepText } from '../ui/Overlay';
 import type { Ctx } from './context';
 
 export type V3 = [number, number, number];
@@ -37,4 +37,8 @@ export interface Step extends StepText {
   cut?: boolean;
   enter?(ctx: Ctx): void;
   update?(ctx: Ctx, t: number, prev: number, dt: number): void;
+}
+
+export interface Chapter extends ChapterInfo {
+  steps: Step[];
 }

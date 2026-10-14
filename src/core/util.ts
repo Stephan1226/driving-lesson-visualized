@@ -34,6 +34,30 @@ export function track(t: number, keys: Key[], e: (t: number) => number = smooth)
   return keys[keys.length - 1][1];
 }
 
+export type MotionKey = [time: number, dist: number, speed: number];
+
+/**
+ * 주행 거리 키프레임: (시각, 거리, 속도)를 3차 에르미트로 이어 위치·속도가 끊기지 않게 한다.
+ * 마지막 키 이후엔 그 속도로 계속 간다.
+ */
+export function motion(keys: MotionKey[]) {
+  return (t: number) => {
+    if (t <= keys[0][0]) return keys[0][1];
+    for (let i = 1; i < keys.length; i++) {
+      const [t1, s1, v1] = keys[i];
+      if (t > t1) continue;
+      const [t0, s0, v0] = keys[i - 1];
+      const h = t1 - t0;
+      const u = (t - t0) / h;
+      const u2 = u * u;
+      const u3 = u2 * u;
+      return (2 * u3 - 3 * u2 + 1) * s0 + (u3 - 2 * u2 + u) * h * v0 + (3 * u2 - 2 * u3) * s1 + (u3 - u2) * h * v1;
+    }
+    const [tn, sn, vn] = keys[keys.length - 1];
+    return sn + vn * (t - tn);
+  };
+}
+
 /** Discrete keyframes: value of the last key whose time <= t. */
 export function pick<T>(t: number, keys: [number, T][]): T {
   let v = keys[0][1];
