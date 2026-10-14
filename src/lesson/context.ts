@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Car, lightsOff } from '../world/car/Car';
+import { Car, lightsOff, specialPlate } from '../world/car/Car';
 import { Cockpit, DZ, EYE } from '../world/car/Cockpit';
 import { Hand, Mannequin, type HandPose, type HandTarget, type FootTarget } from '../world/car/Driver';
 import { clusterDefaults } from '../world/car/Cluster';
@@ -56,7 +56,7 @@ export function createCtx(renderer: THREE.WebGLRenderer, ui: Overlay): Ctx {
   const scene = new THREE.Scene();
   scene.fog = new THREE.Fog(0xdfeaf5, 45, 160);
   const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.02, 900);
-  const car = new Car({ color: 0x2f6fe0, detailed: true, plate: '12가 3456' });
+  const car = new Car({ color: 0x2f6fe0, detailed: true, plate: specialPlate(0) });
   const cockpit = new Cockpit();
   car.root.add(cockpit.root);
   const man = new Mannequin();

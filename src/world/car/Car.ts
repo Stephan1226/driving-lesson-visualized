@@ -2,11 +2,14 @@ import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { MAT, paint, lampMat } from '../materials';
 import { Wheel, TIRE_R } from './Wheel';
-import { blinkOn, textTexture, canvasTexture, lerp } from '../../core/util';
+import { blinkOn, canvasTexture, lerp } from '../../core/util';
+import { PLATE, plateTexture, specialPlate } from './Plate';
 import {
   buildBody, sidePatch, capPatch, wrapLamp, sideLine, sidePt, yTop, yAt, halfW, fU, beltW, archY, cabinRing,
   XF, XR, COWL_X, DECK_X, AXLE_F, AXLE_R, ARCH_R, DOOR, GH, loft, roofY, cPillarPatch,
 } from './Body';
+
+export { specialPlate };
 
 /** 차량 로컬 좌표: +X 전방, +Y 위, +Z 오른쪽(조수석). 운전석은 왼쪽(-Z). */
 export const CAR = {
@@ -234,10 +237,9 @@ export class Car {
     const gm = new THREE.MeshStandardMaterial({ map: grilleTexture(), roughness: 0.5, metalness: 0.4 });
     this.body.add(new THREE.Mesh(capPatch(nose, 1, yAt(XF, 0.43), yAt(XF, 0.66), -0.36, 0.36, 0.003, 4, 12), gm));
     this.body.add(new THREE.Mesh(capPatch(nose, 1, yAt(XF, 0.06), yAt(XF, 0.22), -0.58, 0.58, 0.003, 3, 14), MAT.gloss));
-    const plateTex = textTexture(opts.plate ?? '12가 3456', { w: 512, h: 112, bg: '#f4f4ef', fg: '#1a1a1a', size: 74, radius: 10 });
-    const plateMat = new THREE.MeshStandardMaterial({ map: plateTex, roughness: 0.5 });
-    this.body.add(new THREE.Mesh(capPatch(nose, 1, yAt(XF, 0.08), yAt(XF, 0.08) + 0.11, -0.26, 0.26, 0.009, 2, 6), plateMat));
-    this.body.add(new THREE.Mesh(capPatch(tail, -1, yAt(XR, 0.36), yAt(XR, 0.36) + 0.11, -0.26, 0.26, 0.006, 2, 6), plateMat));
+    const plateMat = new THREE.MeshStandardMaterial({ map: plateTexture(opts.plate ?? specialPlate(0)), roughness: 0.4, alphaTest: 0.5 });
+    this.addPlate(nose, 1, yAt(XF, 0.08), plateMat);
+    this.addPlate(tail, -1, yAt(XR, 0.36), plateMat);
     this.body.add(new THREE.Mesh(capPatch(tail, -1, yAt(XR, 0.0) + 0.01, yAt(XR, 0.13), -0.68, 0.68, 0.003, 2, 14), MAT.gloss));
     for (const side of [-1, 1]) {
       const ex = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.08, 20, 1, true), MAT.chrome);
@@ -358,6 +360,53 @@ export class Car {
     const n = hit ? hit.face!.normal.clone() : new THREE.Vector3(dir, 0, 0);
     const p = hit ? hit.point.clone().addScaledVector(n, off) : new THREE.Vector3(dir > 0 ? XF : XR, y, z);
     return { p, n };
+  }
+
+  /**
+   * 번호판: 끝 곡면 위 y0부터 세운 평판(520×110mm)과 둘레의 검은 프레임.
+   * 곡면의 위아래 기울기를 따르고, 가장 튀어나온 곳보다 조금 앞에 둔다.
+   */
+  private addPlate(cap: THREE.Mesh, dir: 1 | -1, y0: number, mat: THREE.Material) {
+    const { w, h } = PLATE;
+    const lo = this.onCap(cap, dir, y0, 0, 0).p;
+    const hi = this.onCap(cap, dir, y0 + h, 0, 0).p;
+    const up = hi.clone().sub(lo).normalize();
+    const right = new THREE.Vector3(0, 0, -dir); // 번호판을 마주 본 사람의 오른쪽
+    const n = right.clone().cross(up);
+    const mid = lo.clone().lerp(hi, 0.5);
+    let front = -Infinity;
+    let back = Infinity;
+    for (let i = 0; i <= 4; i++) {
+      for (let j = 0; j <= 2; j++) {
+        const d = this.onCap(cap, dir, y0 + (h * j) / 2, (i / 4 - 0.5) * w, 0).p.sub(mid).dot(n);
+        front = Math.max(front, d);
+        back = Math.min(back, d);
+      }
+    }
+    const rect = <T extends THREE.Path>(s: T, hw: number, hh: number, r: number) => {
+      s.moveTo(-hw + r, -hh);
+      s.lineTo(hw - r, -hh);
+      s.quadraticCurveTo(hw, -hh, hw, -hh + r);
+      s.lineTo(hw, hh - r);
+      s.quadraticCurveTo(hw, hh, hw - r, hh);
+      s.lineTo(-hw + r, hh);
+      s.quadraticCurveTo(-hw, hh, -hw, hh - r);
+      s.lineTo(-hw, -hh + r);
+      s.quadraticCurveTo(-hw, -hh, -hw + r, -hh);
+      return s;
+    };
+    const shape = rect(new THREE.Shape(), w / 2 + 0.008, h / 2 + 0.008, 0.016);
+    shape.holes.push(rect(new THREE.Path(), w / 2, h / 2, 0.012));
+    // 곡면 위 장식(그릴 아래 검은 띠 등)보다 앞에 오도록 띄운다
+    const depth = front - back + 0.015;
+    const frame = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments: 4 }), MAT.black);
+    const plate = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+    const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(right, up, n));
+    frame.quaternion.copy(q);
+    plate.quaternion.copy(q);
+    frame.position.copy(mid).addScaledVector(n, back - 0.005);
+    plate.position.copy(mid).addScaledVector(n, front + 0.008);
+    this.body.add(frame, plate);
   }
 
   private point(p: THREE.Vector3) {
